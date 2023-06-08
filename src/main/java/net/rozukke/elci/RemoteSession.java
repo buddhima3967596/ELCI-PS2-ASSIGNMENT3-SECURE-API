@@ -2,6 +2,7 @@
 
 package net.rozukke.elci;
 
+import org.apache.commons.lang.ObjectUtils.Null;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Server;
@@ -21,6 +22,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Base64;
 import static java.nio.charset.StandardCharsets.UTF_8;
+
 
 public class RemoteSession {
 
@@ -58,13 +60,14 @@ public class RemoteSession {
 
 	private Player attachedPlayer = null;
 
-	private boolean KeyExchanged = false;
+	public boolean KeyExchanged = false;
 
 	protected DiffieHelmanKeyExchange DH;
 
 	public RemoteSession(ELCIPlugin plugin, Socket socket) throws IOException {
 		this.socket = socket;
 		this.plugin = plugin;
+		this.KeyExchanged=false;
 		init();
 	}
 
@@ -72,49 +75,50 @@ public class RemoteSession {
 		socket.setTcpNoDelay(true);
 		socket.setKeepAlive(true);
 		socket.setTrafficClass(0x10);
-		
 		this.in = new BufferedReader(new InputStreamReader(socket.getInputStream(), UTF_8));
 		this.out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), UTF_8));
-		
 		try{
-		if (KeyExchanged==false){
-			// Start the DH Key Exchange 
-			DH = new DiffieHelmanKeyExchange();
-			
-			// Send the encoded Server Public Data to the MCPI Client
-			out.write(DH.getServerPublicKeyDataBase64Encoded());
-			out.flush();
-
-			// Receive The b64 encoded public key from the client
-			String ReceivedLine = in.readLine();
-			if (ReceivedLine!=null) {
-				plugin.getLogger().info("Received Serialized Public Key");
-				byte[] bytesRead = Base64.getDecoder().decode(ReceivedLine);
+			if (this.KeyExchanged==false){
+				// Start the DH Key Exchange 
+				DH = new DiffieHelmanKeyExchange();
 				
-				// Returns True if shared secret is succesffuly estabsliehd
-				if (DH.generateSharedSecret(DH.getServerKeyPair(), DH.convertClientPublciKey(bytesRead))) {
+				// Send the encoded Server Public Data to the MCPI Client
+				out.write(DH.getServerPublicKeyDataBase64Encoded());
+				out.flush();
+	
+				// Receive The b64 encoded public key from the client
+				String ReceivedLine = in.readLine();
+				if (ReceivedLine!=null) {
+					plugin.getLogger().info("Received Serialized Public Key");
+					byte[] bytesRead = Base64.getDecoder().decode(ReceivedLine);
+					
+					// Returns True if shared secret is succesffuly estabsliehd
+					if (DH.generateSharedSecret(DH.getServerKeyPair(), DH.convertClientPublciKey(bytesRead))) {
+	
+						plugin.getLogger().info("Shared Secret Established!");
+						plugin.getLogger().info(DH.getSharedSecretData());
+	
+						if(DH.finalizeKeyExchange()) {
+							plugin.getLogger().info("DH Key Exchange Finished!");
+							this.KeyExchanged=true;
+							startThreads();
+							plugin.getLogger().info("Opened SECURE connection to" + socket.getRemoteSocketAddress() + ".");
 
-					plugin.getLogger().info("Shared Secret Established");
-					plugin.getLogger().info(DH.getSharedSecretData());
-
-					if(DH.finalizeKeyExchange()) {
-						plugin.getLogger().info("DH Key Exchange Finished!");
-						KeyExchanged=true;
-						startThreads();
-						plugin.getLogger().info("Opened SECURE connection to" + socket.getRemoteSocketAddress() + ".");
+						}
+					} else {
+						plugin.getLogger().info("Shared Key is not correct length!");
 					}
-				} else {
-					plugin.getLogger().info("Shared Key is not correct length!");
-				}
-
-			} 
-		}
+	
+				} 
+			}
+			
+			} catch (Exception e) {
+				plugin.getLogger().info("Exception Estabslishing Secure Connection,starting in INSECURE Mode!");
+				startThreads();
+				plugin.getLogger().info("Opened INSECURE connection to" + socket.getRemoteSocketAddress() + ".");
+			}
+			
 		
-		} catch (Exception e) {
-			plugin.getLogger().info("Exception Estabslishing Secure Connection,starting in INSECURE Mode!");
-			startThreads();
-			plugin.getLogger().info("Opened INSECURE connection to" + socket.getRemoteSocketAddress() + ".");
-		}
 		
 		
 	}
@@ -143,7 +147,21 @@ public class RemoteSession {
 			}
 		int processedCount = 0;
 		String message;
+		
 		while ((message = inQueue.poll()) != null) {
+
+				try {
+						plugin.getLogger().info(message);
+						message=DH.verifyHMAC(message);
+						plugin.getLogger().info("NEW LINE" + message);
+			
+				} catch (Exception e) {
+						plugin.getLogger().info("FAILED to DECRYPT");
+				}
+
+		
+	
+
 			handleLine(message);
 			processedCount++;
 			if (processedCount >= maxCommandsPerTick) {
@@ -1077,14 +1095,12 @@ public class RemoteSession {
 
 			while (running) {
 				try {
-					String newLine = in.readLine();
+						String newLine=in.readLine();
+	
+
 					if (newLine == null) {
 						running = false;
 					} else {
-						newLine=DH.doDecryption(newLine);
-						if (newLine==null) {
-							throw new IllegalArgumentException("FAILED DECRYPTION!");
-						}
 						inQueue.add(newLine);
 						//System.out.println("Added to in queue");
 					}

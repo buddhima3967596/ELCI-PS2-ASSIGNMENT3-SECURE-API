@@ -5,6 +5,7 @@ import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.Mac;
 // import java.net.ServerSocket;
 // import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -153,14 +154,41 @@ public class DiffieHelmanKeyExchange {
             return false;
         }
     }
+    // Reference https://www.baeldung.com/java-hmac
+    public String verifyHMAC(String receivedContent) throws Exception {
+        if (KeyExhangeSuccessful==true) {
+            try {
+                
+                byte[] bytesAll=Base64.getDecoder().decode(receivedContent);
+                byte[] bytesReceivedHMAC = Arrays.copyOfRange(bytesAll,0,32);
+                byte[] bytesReadContent =  Arrays.copyOfRange(bytesAll,32,bytesAll.length);
+                
+                SecretKeySpec authKeySpec = new SecretKeySpec(authenthicationKey.getEncoded(),authenthicationKey.getAlgorithm());
+                Mac hmac = Mac.getInstance("HmacSHA256");
+                hmac.init(authKeySpec);
+                byte[] bytesCalculatedHMAC=hmac.doFinal(bytesReadContent);
+                
+                if (Arrays.equals(bytesReceivedHMAC,bytesCalculatedHMAC)) {
+                    return doDecryption(bytesReadContent);
+                }
+
+            } catch (Exception e) {
+                return null;
+            }
 
 
-    public String doDecryption(String contentEncrypted) {
+        }
+        
+        return null;
+    }
+
+
+
+    public String doDecryption(byte[] bytesContentEncrypted) {
         if (KeyExhangeSuccessful==true){
             try{
-                byte[] bytesRead = Base64.getDecoder().decode(contentEncrypted);
-                byte[] EncryptedContentBytes = Arrays.copyOfRange(bytesRead, 16, bytesRead.length);
-                byte[] ivBytes = Arrays.copyOfRange(bytesRead, 0, 16);
+                byte[] EncryptedContentBytes = Arrays.copyOfRange(bytesContentEncrypted, 16, bytesContentEncrypted.length);
+                byte[] ivBytes = Arrays.copyOfRange(bytesContentEncrypted, 0, 16);
                
                 IvParameterSpec ivParameters = new IvParameterSpec(ivBytes);
 
@@ -182,6 +210,7 @@ public class DiffieHelmanKeyExchange {
     }
     
 
+    
     // public static boolean createHMAC(SecretKey authenticationKey, byte[] received_content)
 
 
