@@ -175,7 +175,7 @@ public class RemoteSession {
 			handleLine(unencryptedString);
 			} catch (Exception e) {
 				plugin.getLogger().info("Message Authenthication Failed!, Skipping Decryption!");
-				handleLine("testFailCommand");
+				// handleLine("testFailCommand");
 			}
 
 			
