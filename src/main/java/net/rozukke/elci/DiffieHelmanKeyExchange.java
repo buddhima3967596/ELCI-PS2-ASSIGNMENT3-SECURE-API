@@ -38,20 +38,26 @@ public class DiffieHelmanKeyExchange {
     
     //Getters
 
-    public String getServerPublicKeyDataBase64Encoded(){
-        String base64Encoded = Base64.getEncoder().encodeToString(this.serverPublicKeyData);
-        return base64Encoded;
+    public byte[] getServerPublicKeyData(){
+        return this.serverPublicKeyData;
     }
 
     public KeyPair getServerKeyPair(){
         return this.serverKeyPair;
     }
 
-    public String getSharedSecretData(){
-        return  String.valueOf(this.sharedSecretData.length);
+    // public String getSharedSecretData(){
+    //     return  String.valueOf(this.sharedSecretData.length);
+    // }
+
+    public String getAuthKey(){
+        return bytesToHex(this.authenthicationKey.getEncoded());
     }
-
-
+ 
+    public String getEncryptKey(){
+        return bytesToHex(this.encryptionKey.getEncoded());
+    }
+    
 
     public DiffieHelmanKeyExchange() throws Exception {
         this.serverKeyPair=InitalizeKeyExchange();
@@ -93,14 +99,16 @@ public class DiffieHelmanKeyExchange {
         keyAgreement.init(serverKeyPair.getPrivate()); // Intalize the key agreement
         keyAgreement.doPhase(clientPublicKey, true);  // Do the last phase of the key exchange, parameters are specified in the public key
         this.sharedSecretData = keyAgreement.generateSecret(); // Generate Shared Secret 
-        System.out.println(sharedSecretData.length);
+        System.out.println("SECRET LENGTH" + this.sharedSecretData.length);
+        System.out.println("SECRET" + bytesToHex(this.sharedSecretData));
         if (sharedSecretData.length==256) {
             return true;
         } 
         // Returns false is shared secret is not correct length (may be due to tampering etc)
         return false;
     }  catch (Exception e) {
-        return false;
+         System.out.println(e.toString());
+         return false;
     }
         
     }
@@ -151,29 +159,34 @@ public class DiffieHelmanKeyExchange {
         return true;
 
         } catch (Exception e) {
+            System.out.println(e.toString());
             return false;
         }
     }
     // Reference https://www.baeldung.com/java-hmac
-    public String verifyHMAC(String receivedContent) throws Exception {
+    public byte[] verifyHMAC(byte[] messageDecoded) throws Exception {
         if (KeyExhangeSuccessful==true) {
             try {
-                
-                byte[] bytesAll=Base64.getDecoder().decode(receivedContent);
-                byte[] bytesReceivedHMAC = Arrays.copyOfRange(bytesAll,0,32);
-                byte[] bytesReadContent =  Arrays.copyOfRange(bytesAll,32,bytesAll.length);
-                
+
+                byte[] bytesReceivedHMAC = Arrays.copyOfRange(messageDecoded, 0, 32);
+                byte[] bytesReadContent = Arrays.copyOfRange(messageDecoded,32,messageDecoded.length);
+
+
+                System.out.println("HMAC"+bytesToHex(bytesReceivedHMAC));
+                System.out.println("CONTENT"+bytesToHex(bytesReadContent));
+
                 SecretKeySpec authKeySpec = new SecretKeySpec(authenthicationKey.getEncoded(),authenthicationKey.getAlgorithm());
                 Mac hmac = Mac.getInstance("HmacSHA256");
                 hmac.init(authKeySpec);
                 byte[] bytesCalculatedHMAC=hmac.doFinal(bytesReadContent);
-                
+                System.out.println("CALCULATED HMAC"+bytesToHex(bytesCalculatedHMAC));
+
                 if (Arrays.equals(bytesReceivedHMAC,bytesCalculatedHMAC)) {
-                    return doDecryption(bytesReadContent);
+                    return bytesReadContent;
                 }
 
             } catch (Exception e) {
-                return null;
+                throw new Exception(e);
             }
 
 
@@ -189,7 +202,10 @@ public class DiffieHelmanKeyExchange {
             try{
                 byte[] EncryptedContentBytes = Arrays.copyOfRange(bytesContentEncrypted, 16, bytesContentEncrypted.length);
                 byte[] ivBytes = Arrays.copyOfRange(bytesContentEncrypted, 0, 16);
-               
+                
+                System.out.println("ENCRYPTED HEX"+bytesToHex(EncryptedContentBytes));
+                System.out.println("IV HEX" + bytesToHex(ivBytes));
+
                 IvParameterSpec ivParameters = new IvParameterSpec(ivBytes);
 
                 Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
@@ -200,13 +216,13 @@ public class DiffieHelmanKeyExchange {
                 return decrypted_plaintext;
     
         } catch (Exception e) {
-            return null;
+            System.out.println(e.toString());
         }
     }
 
 
 
-        return "bruh";
+        return "FAILED TO DECRYPT";
     }
     
 
