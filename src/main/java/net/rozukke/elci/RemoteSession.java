@@ -168,8 +168,6 @@ public class RemoteSession {
 			}
 
 			
-
-			
 			processedCount++;
 			if (processedCount >= maxCommandsPerTick) {
 				plugin.getLogger().warning("Over " + maxCommandsPerTick +

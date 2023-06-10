@@ -165,6 +165,8 @@ public class DiffieHelmanKeyExchange {
 
                 if (Arrays.equals(bytesReceivedHMAC,bytesCalculatedHMAC)) {
                     return bytesReadContent;
+                } else{
+                     throw new Exception("MAC Verification Failed!");
                 }
 
             } catch (Exception e) {
