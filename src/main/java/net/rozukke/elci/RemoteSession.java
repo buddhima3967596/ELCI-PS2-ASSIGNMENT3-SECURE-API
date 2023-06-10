@@ -1,8 +1,6 @@
 // Edited by rozukke from original file to add commands, remove unnecessary functionality and change naming
 
 package net.rozukke.elci;
-
-import org.apache.commons.lang.ObjectUtils.Null;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Server;
@@ -14,9 +12,6 @@ import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.util.Vector;
-
-import com.google.common.io.BaseEncoding;
-
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -24,7 +19,7 @@ import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Base64;
-import static java.nio.charset.StandardCharsets.UTF_8;
+
 
 
 public class RemoteSession {
@@ -99,29 +94,25 @@ public class RemoteSession {
 		
 				// Receive The b64 encoded public key from the client
 				String ReceivedLine = in.readLine();
-				plugin.getLogger().info("RECEIVED LINE STRING " + ReceivedLine.length());
-				plugin.getLogger().info("RECEIVED LINE STRING " + ReceivedLine);
 				if (ReceivedLine!=null) {
-					plugin.getLogger().info("Received Serialized Public Key");
+					plugin.getLogger().info("Received Serialized Client Public Key!");
 					byte[] bytesRead = Base64.getDecoder().decode(ReceivedLine);
 					
 					// Returns True if shared secret is succesffuly estabsliehd
 					if (DH.generateSharedSecret(DH.getServerKeyPair(), DH.convertClientPublciKey(bytesRead))) {
 		
-						plugin.getLogger().info("Shared Secret Established!");
+						plugin.getLogger().info("Shared Secret Established");
 	
 		
 						if(DH.finalizeKeyExchange()) {
-							plugin.getLogger().info("DH Key Exchange Finished!");
-							System.out.println("AUTH KEY: " + DH.getAuthKey());
-							System.out.println("ENCRYPTION KEY: " + DH.getEncryptKey());
-							this.KeyExchanged=true;
+							plugin.getLogger().info("DH Key Exchange Finished");
+							setExchange(true);
 							startThreads();
 							plugin.getLogger().info("Opened SECURE connection to" + socket.getRemoteSocketAddress() + ".");
 		
 						}
 					} else {
-						plugin.getLogger().info("Shared Key is not correct length!");
+						plugin.getLogger().info("Shared Secret Is Not Valid!");
 					}
 		
 				} 
@@ -129,7 +120,6 @@ public class RemoteSession {
 			
 			} catch (Exception e) {
 				System.out.println(e.toString());
-
 				plugin.getLogger().info("Exception Estabslishing Secure Connection,starting in INSECURE Mode!");
 				startThreads();
 				plugin.getLogger().info("Opened INSECURE connection to" + socket.getRemoteSocketAddress() + ".");
@@ -165,17 +155,16 @@ public class RemoteSession {
 		String message;
 		
 		while ((message = inQueue.poll()) != null) {
-			System.out.println(message);
 			String unencryptedString;
 			byte[] messageBytes=Base64.getDecoder().decode(message);
 			try{
 			messageBytes=this.DH.verifyHMAC(messageBytes);
+			plugin.getLogger().info("Message Authentication Succesful");
 			unencryptedString=this.DH.doDecryption(messageBytes);
-			System.out.println(unencryptedString);
+			plugin.getLogger().info("Message Decrypted: " +unencryptedString);
 			handleLine(unencryptedString);
 			} catch (Exception e) {
-				plugin.getLogger().info("Message Authenthication Failed!, Skipping Decryption!");
-				// handleLine("testFailCommand");
+				plugin.getLogger().info("Message Authentication Failed!, Skipping Decryption!");
 			}
 
 			

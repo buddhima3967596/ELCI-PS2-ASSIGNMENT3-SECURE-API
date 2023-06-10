@@ -6,16 +6,12 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.crypto.Mac;
-// import java.net.ServerSocket;
-// import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
-import java.util.Base64;
-// import java.io.*;
 import at.favre.lib.hkdf.HKDF;
-// import static java.nio.charset.StandardCharsets.UTF_8;
+
 public class DiffieHelmanKeyExchange {
     
     //  Reference 
@@ -46,18 +42,7 @@ public class DiffieHelmanKeyExchange {
         return this.serverKeyPair;
     }
 
-    // public String getSharedSecretData(){
-    //     return  String.valueOf(this.sharedSecretData.length);
-    // }
 
-    public String getAuthKey(){
-        return bytesToHex(this.authenthicationKey.getEncoded());
-    }
- 
-    public String getEncryptKey(){
-        return bytesToHex(this.encryptionKey.getEncoded());
-    }
-    
 
     public DiffieHelmanKeyExchange() throws Exception {
         this.serverKeyPair=InitalizeKeyExchange();
@@ -99,8 +84,6 @@ public class DiffieHelmanKeyExchange {
         keyAgreement.init(serverKeyPair.getPrivate()); // Intalize the key agreement
         keyAgreement.doPhase(clientPublicKey, true);  // Do the last phase of the key exchange, parameters are specified in the public key
         this.sharedSecretData = keyAgreement.generateSecret(); // Generate Shared Secret 
-        System.out.println("SECRET LENGTH" + this.sharedSecretData.length);
-        System.out.println("SECRET" + bytesToHex(this.sharedSecretData));
         if (sharedSecretData.length==256) {
             return true;
         } 
@@ -115,13 +98,13 @@ public class DiffieHelmanKeyExchange {
 
 
 
-    private static String bytesToHex(byte[] bytes) {
-        StringBuilder result = new StringBuilder();
-        for (byte b : bytes) {
-            result.append(String.format("%02X", b));
-        }
-        return result.toString();
-    }
+    // private static String bytesToHex(byte[] bytes) {
+    //     StringBuilder result = new StringBuilder();
+    //     for (byte b : bytes) {
+    //         result.append(String.format("%02X", b));
+    //     }
+    //     return result.toString();
+    // }
 
     private byte[] getDerivedKeyData(byte[] sharedSecret, String salt , String information){
 
@@ -172,14 +155,13 @@ public class DiffieHelmanKeyExchange {
                 byte[] bytesReadContent = Arrays.copyOfRange(messageDecoded,32,messageDecoded.length);
 
 
-                System.out.println("HMAC"+bytesToHex(bytesReceivedHMAC));
-                System.out.println("CONTENT"+bytesToHex(bytesReadContent));
+              
 
                 SecretKeySpec authKeySpec = new SecretKeySpec(authenthicationKey.getEncoded(),authenthicationKey.getAlgorithm());
                 Mac hmac = Mac.getInstance("HmacSHA256");
                 hmac.init(authKeySpec);
                 byte[] bytesCalculatedHMAC=hmac.doFinal(bytesReadContent);
-                System.out.println("CALCULATED HMAC"+bytesToHex(bytesCalculatedHMAC));
+                
 
                 if (Arrays.equals(bytesReceivedHMAC,bytesCalculatedHMAC)) {
                     return bytesReadContent;
@@ -203,13 +185,13 @@ public class DiffieHelmanKeyExchange {
                 byte[] EncryptedContentBytes = Arrays.copyOfRange(bytesContentEncrypted, 16, bytesContentEncrypted.length);
                 byte[] ivBytes = Arrays.copyOfRange(bytesContentEncrypted, 0, 16);
                 
-                System.out.println("ENCRYPTED HEX"+bytesToHex(EncryptedContentBytes));
-                System.out.println("IV HEX" + bytesToHex(ivBytes));
-
+                
                 IvParameterSpec ivParameters = new IvParameterSpec(ivBytes);
 
                 Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+
                 cipher.init(Cipher.DECRYPT_MODE,this.encryptionKey,ivParameters);
+
                 byte[] decrypted_content = cipher.doFinal(EncryptedContentBytes);
                 String decrypted_plaintext= new String(decrypted_content);
                 
@@ -227,111 +209,6 @@ public class DiffieHelmanKeyExchange {
     
 
     
-    // public static boolean createHMAC(SecretKey authenticationKey, byte[] received_content)
-
-
-    // public static void main(String[] args) throws Exception{
-        
-    //     // BufferedReader in;
-    //     // BufferedWriter out;
-
-        
-    //     // // Start the server
-    //     // int serverPort = 4711;
-    //     // ServerSocket serverSocket = new ServerSocket(serverPort);
-    //     // System.out.println("Server started. Listening on port " + serverPort + "...");
-
-    //     // // Accept client connection
-    //     // Socket clientSocket = serverSocket.accept();
-    //     // System.out.println("Client connected.");
-
-    //     // out = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8));
-
-    //     // in = new   BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8));
-       
-
-    //     // DiffieHelmanKeyExchange DH = new DiffieHelmanKeyExchange();
-    //     // // System.out.println(DH.getServerPublicKeyDataBase64Encoded());
-    //     // out.write(DH.getServerPublicKeyDataBase64Encoded());
-    //     // out.flush();
-
-
-    //     // String ReceivedLine = in.readLine();
-
-
-    //     // // if (ReceivedLine!=null) {
-    //     // //     byte[] bytesRead = Base64.getDecoder().decode(ReceivedLine);
-    //     //     PublicKey ClientPublicKey =DH.convertClientPublciKey(bytesRead);
-    //     //     System.out.println(DH.getSharedSecretData());
-    //     //     DH.generateSharedSecret(DH.serverKeyPair, ClientPublicKey);
-    //     //     System.out.println(bytesToHex(DH.getSharedSecretData()));
-           
-    //     // }
-
-
-        
-        
-    //     // // 
-    //     // byte [] derived_encryption_key=getDerivedKey(sharedSecret, "encrypt_salt", "encryption_info");
-
-    //     // byte [] derived_authentication_key=getDerivedKey(sharedSecret, "auth_salt", "authentication_info");
-
-    //     // // String encryption_string=bytesToHex(derived_encryption_key);
-    //     // // System.out.println(encryption_string);
-
-        
-    //     // // String authentication_string=bytesToHex(derived_authentication_key);
-    //     // // System.out.println(authentication_string);
-
-    //     // 
-    //     //
-
-    //     // clientSocket.close();
-
-    //     // //Accept client connection
-    //     // Socket NewSocket = serverSocket.accept();
-    //     // System.out.println("Client connected.");
-
-     
-        
-    //     // // Received Encrypted Data
-
-    //     //   // Receive the client public key from the client
-    //     // //   byte[] EncryptedContentBytes = new byte[4096];
-      
-    //     // //   int bytesRead = inputStream.read(EncryptedContentBytes);
-    //     // //   byte[] ivBytes = Arrays.copyOfRange(EncryptedContentBytes, 0, 16);
-    //     // //   EncryptedContentBytes = Arrays.copyOfRange(EncryptedContentBytes, 16, bytesRead);
-    //     // // //   System.out.println(EncryptedContentBytes.length);
-    //     // // //   System.out.println(bytesToHex(EncryptedContentBytes));
-    //     // // //   System.out.println(bytesToHex(ivBytes));
-
-    //     // // EncryptedContentEncoded = inputStream.read
-          
-    //     // in = new BufferedReader(new InputStreamReader(NewSocket.getInputStream(), StandardCharsets.UTF_8));
-    //     // String ReceivedLine = in.readLine();
-    //     // System.out.println(ReceivedLine);
-    //     // if (ReceivedLine!=null){
-    //     //         byte[] bytesRead = Base64.getDecoder().decode(ReceivedLine);
-    //     //         byte[] EncryptedContentBytes = Arrays.copyOfRange(bytesRead, 16, bytesRead.length);
-    //     //         byte[] ivBytes = Arrays.copyOfRange(bytesRead, 0, 16);
-               
-    //     //         IvParameterSpec ivParameters = new IvParameterSpec(ivBytes);
-
-    //     //         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-    //     //         cipher.init(Cipher.DECRYPT_MODE,EncryptionKey,ivParameters);
-    //     //         byte[] decrypted_content = cipher.doFinal(EncryptedContentBytes);
-    //     //         String decrypted_plaintext= new String(decrypted_content);
-    //     //         System.out.println(decrypted_plaintext);
-
-    //     // }
-        
-
-        
-        
-
-    //     // serverSocket.close();
-    //     // clientSocket.close();
-    //  }
+    
     
 }
